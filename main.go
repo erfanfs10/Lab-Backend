@@ -1,9 +1,16 @@
 package main
 
 import (
-	"fmt"
+	"github.com/erfanfs10/Lab-Backend/middlewares"
+	"github.com/labstack/echo/v4"
 )
 
 func main() {
-	fmt.Println("Hi")
+
+	e := echo.New()
+
+	e.Use(middlewares.CustomLogger())
+	e.Use(middlewares.SeparateLogs())
+
+	e.Logger.Fatal(e.Start(":8000"))
 }
