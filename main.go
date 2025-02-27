@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/erfanfs10/Lab-Backend/middlewares"
+	"github.com/erfanfs10/Lab-Backend/routes"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -22,6 +23,8 @@ func main() {
 			echo.HeaderAuthorization},
 		AllowCredentials: true,
 	}))
+
+	routes.AppRoutes(e.Group("/"))
 
 	e.Logger.Fatal(e.Start(":8000"))
 }
