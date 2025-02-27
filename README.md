@@ -1,4 +1,4 @@
-# Image Convertor
+# Image Converter
 
 ---
 
