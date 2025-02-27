@@ -24,6 +24,8 @@ func main() {
 		AllowCredentials: true,
 	}))
 
+	e.Static("static", "../")
+
 	routes.AppRoutes(e.Group("/"))
 
 	e.Logger.Fatal(e.Start(":8000"))
