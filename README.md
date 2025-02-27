@@ -1,4 +1,4 @@
-# Video Convertor
+# Image Convertor
 
 ---
 
