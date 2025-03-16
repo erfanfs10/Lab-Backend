@@ -17,6 +17,8 @@ import (
 	"time"
 )
 
+var allowedFormats = [3]string{"png", "jpeg", "webp"}
+
 var wsConnections = make(map[string]*websocket.Conn)
 
 var upgrader = websocket.Upgrader{
@@ -26,8 +28,10 @@ var upgrader = websocket.Upgrader{
 }
 
 type ProgressMessage struct {
-	Status string `json:"status"`
-	URL    string `json:"url"`
+	Status   string `json:"status"`
+	Progress int    `json:"progress"`
+	Step     int    `json:"step"`
+	URL      string `json:"url"`
 }
 
 func Home(c echo.Context) error {
@@ -51,19 +55,11 @@ func WebsocketHandler(c echo.Context) error {
 	defer delete(wsConnections, c.RealIP())
 	// listen and write to the connection
 	for {
-		// Write
-		err := ws.WriteJSON(ProgressMessage{Status: "Connected"})
-		if err != nil {
-			return utils.HandleError(c, http.StatusInternalServerError,
-				err, "websocket connection error")
-		}
-
 		// Read
 		_, msg, err := ws.ReadMessage()
 		if err != nil {
 			return utils.HandleError(c, http.StatusInternalServerError,
 				err, "websocket connection error")
-
 		}
 		// print the message to terminal
 		fmt.Printf("%s from %s\n", msg, c.RealIP())
@@ -79,7 +75,7 @@ func Convert(c echo.Context) error {
 			"There is no connection with server")
 	}
 	// send uploading status to client
-	ws.WriteJSON(ProgressMessage{Status: "Uploading"})
+	ws.WriteJSON(ProgressMessage{Status: "Uploading", Progress: 33, Step: 1})
 	// get format from query params
 	fileFormat := c.QueryParam("format")
 	if fileFormat == "" {
@@ -91,6 +87,23 @@ func Convert(c echo.Context) error {
 	if err != nil {
 		return utils.HandleError(c, http.StatusBadRequest,
 			err, "No file sent")
+	}
+	// Check if file is image
+	fileType := strings.Split(image.Header["Content-Type"][0], "/")[0] // like image
+	if fileType != "image" {
+		return utils.HandleError(c, http.StatusBadRequest,
+			errors.New("the file is not an image"), "The File Is Not An Image")
+	}
+	// Check if image is .jpeg or .png or .webp
+	imageType := strings.Split(image.Header["Content-Type"][0], "/")[1] // like png
+	if !utils.CheckFileFormat(allowedFormats, imageType) {
+		return utils.HandleError(c, http.StatusBadRequest,
+			errors.New("the file format not allowed"), "The File Format Not Allowed")
+	}
+	// Check image size: up to 5MB not allowed
+	if image.Size > 5000000 {
+		return utils.HandleError(c, http.StatusBadRequest,
+			errors.New("the image is too large"), "The Image Is Too Large")
 	}
 	// open image
 	src, err := image.Open()
@@ -125,7 +138,7 @@ func Convert(c echo.Context) error {
 			err, "Can not copy the content")
 	}
 	// send converting status to client
-	ws.WriteJSON(ProgressMessage{Status: "Converting"})
+	ws.WriteJSON(ProgressMessage{Status: "Converting", Progress: 66, Step: 2})
 	// convert the file
 	convertedFile := "compressed_" + currentTime + fileFormat // like compressed_2025-02-25_20:47:08.webp
 	// create convert command from os
@@ -145,7 +158,7 @@ func Convert(c echo.Context) error {
 			err, "Can not convert")
 	}
 	// send done status and converted file path to client
-	ws.WriteJSON(ProgressMessage{Status: "Done",
+	ws.WriteJSON(ProgressMessage{Status: "Done", Progress: 100, Step: 3,
 		URL: "http://127.0.0.1:8000/static/images/" + convertedFile})
 	// return the response
 	return c.JSON(http.StatusOK, echo.Map{"message": "image converted"})
